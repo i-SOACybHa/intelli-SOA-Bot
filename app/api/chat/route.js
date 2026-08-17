@@ -1,24 +1,35 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+import { NextResponse } from "next/server";
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function POST(req) {
   try {
     const { messages } = await req.json();
-    const lastUserMessage = messages[messages.length - 1]?.content || '';
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: lastUserMessage,
-      config: {
-        systemInstruction: "Ianao dia intelli-SOA, mpanampy Intelligence Artificielle maoderina, maranitra, sy sariaka. Mamaly ny fanontanian'ny mpampiasa amin'ny fomba mazava sy matihanina ianao.",
-      }
-    });
-
-    const replyText = response.text || "Miala tsiny, misy olana teknika kely. Mba andramo indray.";
-
-    return Response.json({ result: replyText });
-  } catch (error) {
-    console.error("Gemini API Error:", error);
-    return Response.json({ error: "Misy fahadisoana amin'ny fifandraisana amin'ny AI." }, { status: 500 });
-  }
+    if (!messages || !Array.isArray(messages)) {
+      return NextResponse.json(
+        { error: "Invalid messages format" },
+        { status: 400 }
+      );
     }
+
+    // Mampiasa ny model gemini-1.5-flash
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    // Maka ny hafatra farany nalefan'ny mpampiasa
+    const lastMessage = messages[messages.length - 1]?.content || "";
+
+    const result = await model.generateContent(lastMessage);
+    const response = await result.response;
+    const text = response.text();
+
+    return NextResponse.json({ role: "assistant", content: text });
+  } catch (error) {
+    console.error("Error in chat API:", error);
+    return NextResponse.json(
+      { error: "Failed to generate response" },
+      { status: 500 }
+    );
+  }
+}
